@@ -97,7 +97,7 @@ if "Region" in df_filtrado.columns and filtro_region != "Todas":
 # =========================================================================
 # INTERFAZ PRINCIPAL: MÉTRICAS
 # =========================================================================
-st.title("🚚 Panel de Control Red SVC")
+st.title("🚚 Directorio Interactivo HUB y Estaciones DSP")
 
 m1, m2, m3, m4 = st.columns(4)
 total = len(df_filtrado)
