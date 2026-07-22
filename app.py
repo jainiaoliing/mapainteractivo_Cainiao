@@ -58,7 +58,7 @@ opciones_modelo = ["Todos"] + sorted(df_original["Modelo"].dropna().unique().tol
 filtro_modelo = st.sidebar.selectbox("Modelo", opciones_modelo)
 
 # 🟢 NUEVO FILTRO LATERAL: Región (Columna agregada)
-opciones_region = ["Todas"] + sorted(df_original["Region"].dropna().unique().tolist()) if "Region" in df_original.columns else ["Todas"]
+opciones_region = ["Todas"] + sorted(df_original["region"].dropna().unique().tolist()) if "Region" in df_original.columns else ["Todas"]
 filtro_region = st.sidebar.selectbox("Región", opciones_region)
 
 # =========================================================================
@@ -80,7 +80,7 @@ if "Modelo" in df_filtrado.columns and filtro_modelo != "Todos":
 
 # 🟢 APLICAR FILTRO DE REGIÓN
 if "Region" in df_filtrado.columns and filtro_region != "Todas":
-    df_filtrado = df_filtrado[df_filtrado["Region"] == filtro_region]
+    df_filtrado = df_filtrado[df_filtrado["region"] == filtro_region]
 
 # =========================================================================
 # INTERFAZ PRINCIPAL: MÉTRICAS (SECCIÓN MODIFICADA)
@@ -97,7 +97,7 @@ n_bodegas = len(df_filtrado[bodegas_mask])
 n_proveedores = total - n_bodegas
 
 # Conteo dinámico de regiones activas según los filtros
-n_regiones = df_filtrado["Region"].nunique() if "Region" in df_filtrado.columns else 0
+n_regiones = df_filtrado["region"].nunique() if "Region" in df_filtrado.columns else 0
 
 # Desplegar las métricas superiores
 m1.metric("Total Nodos", total)
