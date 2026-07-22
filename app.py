@@ -173,10 +173,11 @@ with col_mapa:
 
         for idx, fila in df_filtrado.iterrows():
             dsp = str(fila["DSP NAME"]).upper()
-            rep = str(fila["Representante Legal"]).upper()
+            hub = str(fila.get("hub","N/A")).upper
             pic = str(fila.get("PIC Capacity", "N/A")).upper()
             mod = str(fila.get("Modelo", "N/A")).upper()
             reg = str(fila.get("Region", "N/A")).upper()
+            rep = str(fila["Representante Legal"]).upper()
             tipo_raw = str(fila.get("Tipo", "")).lower()
 
             is_bodega = "bodega" in tipo_raw
@@ -189,9 +190,10 @@ with col_mapa:
                 <h4 style="color: #1e40af; margin:0;">{dsp}</h4>
                 <hr style="margin:5px 0;">
                 <b>Representante:</b> {rep}<br>
-                <b>PIC Capacity:</b> {pic}<br>
+                <b>hub:</b> {hub}<br>
                 <b>Modelo:</b> {mod}<br>
                 <b>Región:</b> {reg}
+                <b>PIC Capacity:</b> {pic}<br>
             </div>
             """
             
