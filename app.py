@@ -7,29 +7,26 @@ from streamlit_folium import st_folium
 # Configuración de página ancha
 st.set_page_config(layout="wide", page_title="Red SVC - Dashboard Interactivo")
 
-# CONFIGURACIÓN DE RUTAS (Modificar tras crear tu cuenta de GitHub)
-USUARIO_GITHUB = "TU_USUARIO_AQUI"  # <--- Cambiaremos esto en el Paso 3
-REPOSITORIO = "mapa-red-svc"
+# CONFIGURACIÓN DE RUTAS DE GITHUB
+USUARIO_GITHUB = "cainiao"  # Basado en tu URL de la captura de pantalla
+REPOSITORIO = "mapainteractivocainiao"
 ARCHIVO_EXCEL = "DIRECCIONES.xlsx"
 
-# Enlace directo al archivo crudo en los servidores de GitHub
 URL_EXCEL_GITHUB = f"https://githubusercontent.com{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
 
-# 1. Función para cargar datos desde internet (Con un tiempo de vida corto en caché)
-@st.cache_data(ttl=60) # ttl=60 hace que el mapa revise si hay un Excel nuevo en GitHub cada 60 segundos
+# 1. Función para cargar datos con caché controlada
+@st.cache_data(ttl=60)
 def cargar_datos():
     try:
-        # Intenta leer directamente desde el repositorio público de GitHub
         df = pd.read_excel(URL_EXCEL_GITHUB)
     except Exception:
-        # Si no hay internet o aún no se sube, lee el archivo local de respaldo
         df = pd.read_excel(ARCHIVO_EXCEL)
     
     # Conversión de coordenadas a números
     df["LAT"] = pd.to_numeric(df["LAT"], errors='coerce')
     df["LON"] = pd.to_numeric(df["LON"], errors='coerce')
     
-    # Forzar existencia de la columna Tipo
+    # Forzar la existencia de la columna Tipo
     if "Tipo" not in df.columns:
         if "TIPO" in df.columns:
             df["Tipo"] = df["TIPO"]
@@ -39,7 +36,7 @@ def cargar_datos():
     df["Tipo"] = df["Tipo"].fillna("Proveedor")
     return df.dropna(subset=["LAT", "LON"])
 
-# Carga inicial
+# Carga inicial directa
 df_original = cargar_datos()
 
 # =========================================================================
@@ -60,6 +57,10 @@ filtro_tipo = st.sidebar.selectbox("Tipo de Instalación", opciones_tipo)
 opciones_modelo = ["Todos"] + sorted(df_original["Modelo"].dropna().unique().tolist()) if "Modelo" in df_original.columns else ["Todos"]
 filtro_modelo = st.sidebar.selectbox("Modelo", opciones_modelo)
 
+# 🟢 NUEVO FILTRO LATERAL: Región (Columna agregada)
+opciones_region = ["Todas"] + sorted(df_original["Region"].dropna().unique().tolist()) if "Region" in df_original.columns else ["Todas"]
+filtro_region = st.sidebar.selectbox("Región", opciones_region)
+
 # =========================================================================
 # LÓGICA DE FILTRADO
 # =========================================================================
@@ -77,21 +78,32 @@ if filtro_tipo != "Todos":
 if "Modelo" in df_filtrado.columns and filtro_modelo != "Todos":
     df_filtrado = df_filtrado[df_filtrado["Modelo"] == filtro_modelo]
 
+# 🟢 APLICAR FILTRO DE REGIÓN
+if "Region" in df_filtrado.columns and filtro_region != "Todas":
+    df_filtrado = df_filtrado[df_filtrado["Region"] == filtro_region]
+
 # =========================================================================
-# INTERFAZ PRINCIPAL: MÉTRICAS
+# INTERFAZ PRINCIPAL: MÉTRICAS (SECCIÓN MODIFICADA)
 # =========================================================================
 st.title("🚚 Panel de Control Red SVC")
 
-m1, m2, m3 = st.columns(3)
+# Configurar 4 columnas para incluir la Región
+m1, m2, m3, m4 = st.columns(4)
 total = len(df_filtrado)
 
+# Conteo basado en la columna 'Tipo' de manera segura
 bodegas_mask = df_filtrado["Tipo"].astype(str).str.contains("Bodega", case=False, na=False)
 n_bodegas = len(df_filtrado[bodegas_mask])
 n_proveedores = total - n_bodegas
 
+# Conteo dinámico de regiones activas según los filtros
+n_regiones = df_filtrado["Region"].nunique() if "Region" in df_filtrado.columns else 0
+
+# Desplegar las métricas superiores
 m1.metric("Total Nodos", total)
 m2.metric("Bodegas (Rojo)", n_bodegas)
 m3.metric("Proveedores (Azul)", n_proveedores)
+m4.metric("Regiones Activas", n_regiones)  # 🟢 Nueva métrica visual instalada
 
 st.markdown("---")
 
@@ -105,12 +117,14 @@ with col_info:
     st.write("Selecciona una fila para ubicarla en el mapa:")
     
     columnas_tabla = ["DSP NAME"]
+    if "PIC Capacity" in df_filtrado.columns:
+        columnas_tabla.append("PIC Capacity")
     if "Tipo" in df_filtrado.columns:
         columnas_tabla.append("Tipo")
     if "Modelo" in df_filtrado.columns:
         columnas_tabla.append("Modelo")
-    if "PIC Capacity" in df_filtrado.columns:
-        columnas_tabla.append("PIC Capacity")
+    if "Region" in df_filtrado.columns:
+        columnas_tabla.append("Region")  # Mostrar región en la tabla derecha
     
     event = st.dataframe(
         df_filtrado[columnas_tabla],
@@ -124,11 +138,13 @@ with col_info:
     punto_seleccionado = None
     if len(seleccion_idx) > 0:
         punto_seleccionado = df_filtrado.iloc[seleccion_idx]
-        st.info(f"📍 Enfocando: {punto_seleccionado['DSP NAME'].values}")
+        st.info(f"📍 Enfocando: {punto_seleccionado['DSP NAME'].values[0]}")
 
 with col_mapa:
     if not df_filtrado.empty:
+        # Centrar el mapa de forma dinámica según la selección de la tabla
         if punto_seleccionado is not None:
+            # 🟢 SOLUCIÓN AL ERROR ANTERIOR: Extraemos el valor indexado de forma correcta
             lat_ini = float(punto_seleccionado["LAT"].values[0])
             lon_ini = float(punto_seleccionado["LON"].values[0])
             zoom_ini = 14
@@ -145,23 +161,27 @@ with col_mapa:
             rep = fila["Representante Legal"]
             pic = fila.get("PIC Capacity", "N/A")
             mod = fila.get("Modelo", "N/A")
+            reg = fila.get("Region", "N/A")
             tipo_raw = str(fila.get("Tipo", "")).lower()
 
             is_bodega = "bodega" in tipo_raw
             color_ico = "red" if is_bodega else "blue"
             icon_name = "home" if is_bodega else "truck"
 
+            # Contenido HTML con la nueva variable de región integrada al Popup
             html = f"""
             <div style="font-family: Arial; min-width: 180px;">
                 <h4 style="color: #1e40af; margin:0;">{dsp}</h4>
                 <hr style="margin:5px 0;">
                 <b>Representante:</b> {rep}<br>
                 <b>PIC Capacity:</b> {pic}<br>
-                <b>Modelo:</b> {mod}
+                <b>Modelo:</b> {mod}<br>
+                <b>Región:</b> {reg}
             </div>
             """
             
-            if punto_seleccionado is not None and idx == punto_seleccionado.index:
+            # Destacar en verde si está seleccionado en la tabla
+            if punto_seleccionado is not None and idx == punto_seleccionado.index[0]:
                 folium.Marker(
                     location=[fila["LAT"], fila["LON"]],
                     popup=folium.Popup(html, max_width=300, show=True),
