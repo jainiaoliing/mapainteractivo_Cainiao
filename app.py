@@ -26,6 +26,20 @@ def cargar_datos():
     df["LAT"] = pd.to_numeric(df["LAT"], errors='coerce')
     df["LON"] = pd.to_numeric(df["LON"], errors='coerce')
     
+   # 🟢 CORRECCIÓN DE REGIÓN: Buscar variaciones comunes de nombre con/sin acento o mayúsculas
+    columna_region_real = None
+    for opcion in ["Region", "Región", "REGION", "región", "region"]:
+        if opcion in df.columns:
+            columna_region_real = opcion
+            break
+            
+    # Si la encuentra con acento o mayúsculas, la renombra a 'Region' de manera interna
+    if columna_region_real and columna_region_real != "Region":
+        df["Region"] = df[columna_region_real]
+    elif json_region_real is None:
+        # Si de plano no existe la columna en el Excel, crea una por defecto para que no truene
+        df["Region"] = "Centro"
+    
     # Forzar la existencia de la columna Tipo
     if "Tipo" not in df.columns:
         if "TIPO" in df.columns:
@@ -34,6 +48,7 @@ def cargar_datos():
             df["Tipo"] = "Proveedor"
             
     df["Tipo"] = df["Tipo"].fillna("Proveedor")
+    df["Region"] = df["Region"].fillna("Sin Región")
     return df.dropna(subset=["LAT", "LON"])
 
 # Carga inicial directa
