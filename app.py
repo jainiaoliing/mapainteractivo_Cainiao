@@ -129,8 +129,8 @@ with col_info:
 with col_mapa:
     if not df_filtrado.empty:
         if punto_seleccionado is not None:
-            lat_ini = float(punto_seleccionado["LAT"].values)
-            lon_ini = float(punto_seleccionado["LON"].values)
+            lat_ini = float(punto_seleccionado["LAT"].values[0])
+            lon_ini = float(punto_seleccionado["LON"].values[0])
             zoom_ini = 14
         else:
             lat_ini = df_filtrado["LAT"].mean()
