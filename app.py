@@ -105,12 +105,12 @@ with col_info:
     st.write("Selecciona una fila para ubicarla en el mapa:")
     
     columnas_tabla = ["DSP NAME"]
-    if "PIC Capacity" in df_filtrado.columns:
-        columnas_tabla.append("PIC Capacity")
     if "Tipo" in df_filtrado.columns:
         columnas_tabla.append("Tipo")
     if "Modelo" in df_filtrado.columns:
         columnas_tabla.append("Modelo")
+    if "PIC Capacity" in df_filtrado.columns:
+        columnas_tabla.append("PIC Capacity")
     
     event = st.dataframe(
         df_filtrado[columnas_tabla],
