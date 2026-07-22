@@ -172,11 +172,11 @@ with col_mapa:
         marker_cluster = MarkerCluster().add_to(mapa)
 
         for idx, fila in df_filtrado.iterrows():
-            dsp = fila["DSP NAME"]
-            rep = fila["Representante Legal"]
-            pic = fila.get("PIC Capacity", "N/A")
-            mod = fila.get("Modelo", "N/A")
-            reg = fila.get("Region", "N/A")
+            dsp = str(fila["DSP NAME"]).upper()
+            rep = str(fila["Representante Legal"]).upper()
+            pic = str(fila.get("PIC Capacity", "N/A")).upper()
+            mod = str(fila.get("Modelo", "N/A")).upper()
+            reg = str(fila.get("Region", "N/A")).upper()
             tipo_raw = str(fila.get("Tipo", "")).lower()
 
             is_bodega = "bodega" in tipo_raw
