@@ -7,14 +7,14 @@ from streamlit_folium import st_folium
 # Configuración de página ancha
 st.set_page_config(layout="wide", page_title="Red SVC - Dashboard Interactivo")
 
-# CONFIGURACIÓN DE RUTAS DE GITHUB (Corrección de URL raw)
+# CONFIGURACIÓN DE RUTAS DE GITHUB
 USUARIO_GITHUB = "cainiao"
 REPOSITORIO = "mapainteractivocainiao"
 ARCHIVO_EXCEL = "DIRECCIONES.xlsx"
 
 URL_EXCEL_GITHUB = f"https://raw.githubusercontent.com/{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
 
-# Función auxiliar para validar y limpiar valores vacíos o 'NaN'
+# Función auxiliar para validar y limpiar valores vacíos
 def limpiar_texto(valor, default=""):
     if pd.isna(valor) or valor is None:
         return default
@@ -47,15 +47,35 @@ def cargar_datos():
     elif columna_region_real is None:
         df["Region"] = "Centro"
     
-    # Forzar la existencia de la columna Tipo
-    if "Tipo" not in df.columns:
-        if "TIPO" in df.columns:
-            df["Tipo"] = df["TIPO"]
-        else:
-            df["Tipo"] = "Proveedor"
+    # IDENTIFICACIÓN Y NORMALIZACIÓN DE LA COLUMNA 'TIPO'
+    columna_tipo_real = None
+    for opcion in ["Tipo", "TIPO", "tipo", "Tipo de Instalacion", "Tipo de Instalación", "TIPO DE INSTALACION"]:
+        if opcion in df.columns:
+            columna_tipo_real = opcion
+            break
             
-    df["Tipo"] = df["Tipo"].fillna("Proveedor")
+    if columna_tipo_real:
+        df["Tipo"] = df[columna_tipo_real]
+    else:
+        df["Tipo"] = None
+
+    # Lógica inteligente para inferir "Bodega" si el campo viene vacío en el Excel
+    def inferir_tipo(row):
+        tipo_val = limpiar_texto(row.get("Tipo"))
+        if tipo_val:
+            return tipo_val
+        
+        # Si 'Tipo' viene vacío en el Excel, buscamos rastros de 'bodega' o 'hub' en otras columnas
+        dsp_val = limpiar_texto(row.get("DSP NAME")).lower()
+        modelo_val = limpiar_texto(row.get("Modelo")).lower()
+        
+        if "bodega" in dsp_val or "bodega" in modelo_val or "hub" in dsp_val:
+            return "Bodega"
+        return "Proveedor"
+
+    df["Tipo"] = df.apply(inferir_tipo, axis=1)
     df["Region"] = df["Region"].fillna("Sin Región")
+    
     return df.dropna(subset=["LAT", "LON"])
 
 # Carga inicial directa
@@ -79,7 +99,6 @@ filtro_tipo = st.sidebar.selectbox("Tipo de Instalación", opciones_tipo)
 opciones_modelo = ["Todos"] + sorted(df_original["Modelo"].dropna().unique().tolist()) if "Modelo" in df_original.columns else ["Todos"]
 filtro_modelo = st.sidebar.selectbox("Modelo", opciones_modelo)
 
-# CORRECCIÓN: Uso estandarizado de la columna 'Region' con mayúscula
 opciones_region = ["Todas"] + sorted(df_original["Region"].dropna().unique().tolist()) if "Region" in df_original.columns else ["Todas"]
 filtro_region = st.sidebar.selectbox("Región", opciones_region)
 
@@ -114,7 +133,6 @@ bodegas_mask = df_filtrado["Tipo"].astype(str).str.contains("Bodega", case=False
 n_bodegas = len(df_filtrado[bodegas_mask])
 n_proveedores = total - n_bodegas
 
-# CORRECCIÓN: Conteo de regiones con 'Region' corregida
 n_regiones = df_filtrado["Region"].nunique() if "Region" in df_filtrado.columns else 0
 
 m1.metric("Total Nodos", total)
@@ -130,7 +148,7 @@ st.markdown("---")
 col_mapa, col_info = st.columns(2)
 
 with col_info:
-    st.subheader("Lista de Proveedores")
+    st.subheader("Lista de Nodos / Proveedores")
     st.write("Selecciona una fila para ubicarla en el mapa:")
     
     columnas_tabla = [col for col in ["DSP NAME", "PIC Capacity", "Tipo", "Modelo", "Region"] if col in df_filtrado.columns]
