@@ -7,12 +7,21 @@ from streamlit_folium import st_folium
 # Configuración de página ancha
 st.set_page_config(layout="wide", page_title="Red SVC - Dashboard Interactivo")
 
-# CONFIGURACIÓN DE RUTAS DE GITHUB (Corrección de diagonal integrada)
+# CONFIGURACIÓN DE RUTAS DE GITHUB (Corrección de URL raw)
 USUARIO_GITHUB = "cainiao"
 REPOSITORIO = "mapainteractivocainiao"
 ARCHIVO_EXCEL = "DIRECCIONES.xlsx"
 
-URL_EXCEL_GITHUB = f"https://githubusercontent.com{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
+URL_EXCEL_GITHUB = f"https://raw.githubusercontent.com/{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
+
+# Función auxiliar para validar y limpiar valores vacíos o 'NaN'
+def limpiar_texto(valor, default=""):
+    if pd.isna(valor) or valor is None:
+        return default
+    val_str = str(valor).strip()
+    if val_str.lower() in ["nan", "none", "null", ""]:
+        return default
+    return val_str
 
 # 1. Función para cargar datos con caché controlada
 @st.cache_data(ttl=60)
@@ -80,10 +89,9 @@ filtro_region = st.sidebar.selectbox("Región", opciones_region)
 df_filtrado = df_original.copy()
 
 if busqueda:
-    df_filtrado = df_filtrado[
-        df_filtrado["DSP NAME"].str.contains(busqueda, case=False, na=False) | 
-        df_filtrado["Representante Legal"].str.contains(busqueda, case=False, na=False)
-    ]
+    dsp_mask = df_filtrado["DSP NAME"].astype(str).str.contains(busqueda, case=False, na=False) if "DSP NAME" in df_filtrado.columns else False
+    rep_mask = df_filtrado["Representante Legal"].astype(str).str.contains(busqueda, case=False, na=False) if "Representante Legal" in df_filtrado.columns else False
+    df_filtrado = df_filtrado[dsp_mask | rep_mask]
 
 if filtro_tipo != "Todos":
     df_filtrado = df_filtrado[df_filtrado["Tipo"] == filtro_tipo]
@@ -125,15 +133,7 @@ with col_info:
     st.subheader("Lista de Proveedores")
     st.write("Selecciona una fila para ubicarla en el mapa:")
     
-    columnas_tabla = ["DSP NAME"]
-    if "PIC Capacity" in df_filtrado.columns:
-        columnas_tabla.append("PIC Capacity")
-    if "Tipo" in df_filtrado.columns:
-        columnas_tabla.append("Tipo")
-    if "Modelo" in df_filtrado.columns:
-        columnas_tabla.append("Modelo")
-    if "Region" in df_filtrado.columns:
-        columnas_tabla.append("Region")
+    columnas_tabla = [col for col in ["DSP NAME", "PIC Capacity", "Tipo", "Modelo", "Region"] if col in df_filtrado.columns]
     
     event = st.dataframe(
         df_filtrado[columnas_tabla],
@@ -147,7 +147,8 @@ with col_info:
     punto_seleccionado = None
     if len(seleccion_idx) > 0:
         punto_seleccionado = df_filtrado.iloc[seleccion_idx]
-        st.info(f"📍 Enfocando: {punto_seleccionado['DSP NAME'].values[0]}")
+        dsp_nombre = limpiar_texto(punto_seleccionado['DSP NAME'].values[0], default="Nodo seleccionado")
+        st.info(f"📍 Enfocando: {dsp_nombre}")
 
 with col_mapa:
     if not df_filtrado.empty:
@@ -164,29 +165,38 @@ with col_mapa:
         marker_cluster = MarkerCluster().add_to(mapa)
 
         for idx, fila in df_filtrado.iterrows():
-            # CORRECCIÓN: Variables protegidas en mayúsculas y método .upper() corregido
-            dsp = str(fila["DSP NAME"]).upper()
-            hub = str(fila.get("hub", "N/A")).upper()
-            pic = str(fila.get("PIC Capacity", "N/A")).upper()
-            mod = str(fila.get("Modelo", "N/A")).upper()
-            reg = str(fila.get("Region", "N/A")).upper()
-            rep = str(fila["Representante Legal"]).upper()
-            tipo_raw = str(fila.get("Tipo", "")).lower()
+            dsp = limpiar_texto(fila.get("DSP NAME"), "SIN NOMBRE").upper()
+            hub = limpiar_texto(fila.get("hub"))
+            pic = limpiar_texto(fila.get("PIC Capacity"))
+            mod = limpiar_texto(fila.get("Modelo"))
+            reg = limpiar_texto(fila.get("Region"))
+            rep = limpiar_texto(fila.get("Representante Legal"))
+            tipo_raw = limpiar_texto(fila.get("Tipo")).lower()
 
             is_bodega = "bodega" in tipo_raw
             color_ico = "red" if is_bodega else "blue"
             icon_name = "home" if is_bodega else "truck"
 
-            # Contenido HTML estructurado
+            # CONSTRUCCIÓN DINÁMICA DEL POPUP
+            html_detalles = []
+            if rep:
+                html_detalles.append(f"<b>Representante:</b> {rep.upper()}")
+            if hub:
+                html_detalles.append(f"<b>Hub:</b> {hub.upper()}")
+            if mod:
+                html_detalles.append(f"<b>Modelo:</b> {mod.upper()}")
+            if reg:
+                html_detalles.append(f"<b>Región:</b> {reg.upper()}")
+            if pic:
+                html_detalles.append(f"<b>PIC Capacity:</b> {pic.upper()}")
+
+            detalles_str = "<br>".join(html_detalles) if html_detalles else "<i>Sin detalles adicionales</i>"
+
             html = f"""
             <div style="font-family: Arial; min-width: 180px; font-size: 13px; line-height: 1.4;">
                 <h4 style="color: #1e40af; margin:0 0 6px 0;">{dsp}</h4>
                 <hr style="margin:4px 0; border: 0; border-top: 1px solid #ddd;">
-                <b>Representante:</b> {rep}<br>
-                <b>Hub:</b> {hub}<br>
-                <b>Modelo:</b> {mod}<br>
-                <b>Región:</b> {reg}<br>
-                <b>PIC Capacity:</b> {pic}
+                {detalles_str}
             </div>
             """
             
