@@ -65,7 +65,6 @@ def cargar_datos():
         if tipo_val:
             return tipo_val
         
-        # Si 'Tipo' viene vacío en el Excel, buscamos rastros de 'bodega' o 'hub' en otras columnas
         dsp_val = limpiar_texto(row.get("DSP NAME")).lower()
         modelo_val = limpiar_texto(row.get("Modelo")).lower()
         
@@ -190,6 +189,9 @@ with col_mapa:
             reg = limpiar_texto(fila.get("Region"))
             rep = limpiar_texto(fila.get("Representante Legal"))
             tipo_raw = limpiar_texto(fila.get("Tipo")).lower()
+            
+            lat_val = fila.get("LAT")
+            lon_val = fila.get("LON")
 
             is_bodega = "bodega" in tipo_raw
             color_ico = "red" if is_bodega else "blue"
@@ -210,23 +212,31 @@ with col_mapa:
 
             detalles_str = "<br>".join(html_detalles) if html_detalles else "<i>Sin detalles adicionales</i>"
 
+            # CONSTRUCCIÓN DEL BLOQUE DE COORDENADAS (AL FINAL Y EN TAMAÑO PEQUEÑO)
+            html_coords = f"""
+            <div style="font-size: 10px; color: #666666; margin-top: 8px; border-top: 1px dashed #eee; padding-top: 4px;">
+                📍 Coords: {lat_val:.5f}, {lon_val:.5f}
+            </div>
+            """ if pd.notna(lat_val) and pd.notna(lon_val) else ""
+
             html = f"""
             <div style="font-family: Arial; min-width: 180px; font-size: 13px; line-height: 1.4;">
                 <h4 style="color: #1e40af; margin:0 0 6px 0;">{dsp}</h4>
                 <hr style="margin:4px 0; border: 0; border-top: 1px solid #ddd;">
                 {detalles_str}
+                {html_coords}
             </div>
             """
             
             if punto_seleccionado is not None and idx == punto_seleccionado.index[0]:
                 folium.Marker(
-                    location=[fila["LAT"], fila["LON"]],
+                    location=[lat_val, lon_val],
                     popup=folium.Popup(html, max_width=300, show=True),
                     icon=folium.Icon(color="green", icon="star", prefix='fa')
                 ).add_to(mapa)
             else:
                 folium.Marker(
-                    location=[fila["LAT"], fila["LON"]],
+                    location=[lat_val, lon_val],
                     popup=folium.Popup(html, max_width=300),
                     icon=folium.Icon(color=color_ico, icon=icon_name, prefix='fa')
                 ).add_to(marker_cluster)
