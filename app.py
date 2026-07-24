@@ -1,18 +1,3 @@
-El problema principal radica en cómo Pandas interpreta las celdas vacías del archivo Excel. Al leer valores vacíos, Pandas les asigna `NaN` (Not a Number). Al convertir estos valores con `str(...)` y `.upper()`, Python genera literalmente el texto `"NAN"`, provocando que en la interfaz y en los popups del mapa aparezcan datos "sucios" o líneas vacías sin sentido para registros tipo **Bodega**.
-
----
-
-### Cambios realizados
-
-1. **Función de Limpieza de Texto (`limpiar_texto`)**: Se añadió un helper que detecta si el valor es nulo, `NaN` o una cadena vacía, devolviendo un texto limpio o nada en lugar de `"NAN"`.
-2. **Popup Dinámico (HTML)**: El contenido HTML emergente del mapa ahora se construye línea por línea únicamente si la columna contiene información real. Si es una **Bodega** (o si cualquier registro carece de campos como *Representante*, *Modelo* o *PIC Capacity*), **esa línea simplemente no se dibuja**.
-3. **Corrección en la URL de GitHub**: Se corrigió el formato de la URL de GitHub en crudo (`raw.githubusercontent.com`) para evitar errores de conexión al descargar el Excel.
-
----
-
-### Código Actualizado
-
-```python
 import streamlit as st
 import pandas as pd
 import folium
@@ -231,5 +216,3 @@ with col_mapa:
         st_folium(mapa, width="stretch", height=600)
     else:
         st.warning("No hay datos para mostrar con los filtros actuales.")
-
-```
