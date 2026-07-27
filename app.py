@@ -11,7 +11,7 @@ st.set_page_config(layout="wide", page_title="Red SVC - Dashboard Interactivo")
 USUARIO_GITHUB = "cainiao"
 REPOSITORIO = "mapainteractivocainiao"
 ARCHIVO_EXCEL = "DIRECCIONES.xlsx"
-URL_EXCEL_GITHUB = f"https://raw.githubusercontent.com/{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
+URL_EXCEL_GITHUB = f"https://githubusercontent.com{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
 
 # Función auxiliar para validar y limpiar valores vacíos
 def limpiar_texto(valor, default=""):
@@ -186,7 +186,6 @@ with col_mapa:
     if not df_filtrado.empty:
         if punto_seleccionado is not None:
             lat_ini = float(punto_seleccionado["LAT"].values[0])
-            lon_ini = float(punto_screenshot = punto_seleccionado["LON"].values[0]) # Corrección de tipografía interna
             lon_ini = float(punto_seleccionado["LON"].values[0])
             zoom_ini = 14
         else:
@@ -199,7 +198,7 @@ with col_mapa:
 
         for idx, fila in df_filtrado.iterrows():
             dsp = limpiar_texto(fila.get("DSP NAME"), "SIN NOMBRE").upper()
-            hub = limpiar_texto(fila.get("Hub")) # Vinculado a la nueva columna normalizada
+            hub = limpiar_texto(fila.get("Hub"))
             pic = limpiar_texto(fila.get("PIC Capacity"))
             mod = limpiar_texto(fila.get("Modelo"))
             reg = limpiar_texto(fila.get("Region"))
@@ -237,3 +236,9 @@ with col_mapa:
             html = f"""
             <div style="font-family: Arial; min-width: 180px; font-size: 13px; line-height: 1.4;">
                 <h4 style="color: #1e40af; margin:0 0 6px 0;">{dsp}</h4>
+                <hr style="margin:4px 0; border: 0; border-top: 1px solid #ddd;">
+                {detalles_str}
+                {html_coords}
+            </div>
+            """
+
