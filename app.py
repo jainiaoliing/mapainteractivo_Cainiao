@@ -1,4 +1,4 @@
-import streamlit st
+import streamlit as st
 import pandas as pd
 import folium
 from folium.plugins import MarkerCluster
@@ -11,7 +11,7 @@ st.set_page_config(layout="wide", page_title="Red SVC - Dashboard Interactivo")
 USUARIO_GITHUB = "cainiao"
 REPOSITORIO = "mapainteractivocainiao"
 ARCHIVO_EXCEL = "DIRECCIONES.xlsx"
-URL_EXCEL_GITHUB = f"https://raw.githubusercontent.com/{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
+URL_EXCEL_GITHUB = f"https://githubusercontent.com{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
 
 # Función auxiliar para validar y limpiar valores vacíos
 def limpiar_texto(valor, default=""):
