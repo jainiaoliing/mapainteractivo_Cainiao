@@ -109,7 +109,7 @@ filtro_modelo = st.sidebar.selectbox("Modelo", opciones_modelo)
 opciones_region = ["Todas"] + sorted(df_original["Region"].dropna().unique().tolist()) if "Region" in df_original.columns else ["Todas"]
 filtro_region = st.sidebar.selectbox("Región", opciones_region)
 
-# NUEVO FILTRO: Selección de HUB para ver qué proveedores operan desde allí
+# FILTRO DE HUB (PROVEEDORES ASOCIADOS)
 opciones_hub = ["Todos"] + sorted(df_original["Hub"].dropna().unique().tolist()) if "Hub" in df_original.columns else ["Todos"]
 filtro_hub = st.sidebar.selectbox("Filtrar por HUB (Proveedores asociados)", opciones_hub)
 
@@ -132,7 +132,6 @@ if "Modelo" in df_filtrado.columns and filtro_modelo != "Todos":
 if "Region" in df_filtrado.columns and filtro_region != "Todas":
     df_filtrado = df_filtrado[df_filtrado["Region"] == filtro_region]
 
-# Aplicar el nuevo filtro de HUB asignado al proveedor
 if "Hub" in df_filtrado.columns and filtro_hub != "Todos":
     df_filtrado = df_filtrado[df_filtrado["Hub"] == filtro_hub]
 
@@ -164,7 +163,6 @@ with col_info:
     st.subheader("Lista de Nodos / Proveedores")
     st.write("Selecciona una fila para ubicarla en el mapa:")
     
-    # Se añade la columna 'Hub' a la tabla para mejorar el control visual
     columnas_tabla = [col for col in ["DSP NAME", "Hub", "PIC Capacity", "Tipo", "Modelo", "Region"] if col in df_filtrado.columns]
     
     event = st.dataframe(
@@ -177,11 +175,11 @@ with col_info:
 
     seleccion_idx = event.selection.get("rows", [])
     punto_seleccionado = None
-    fila_seleccionada_id = None
+    idx_seleccionado = None  # Guardará el número de índice exacto de la fila seleccionada
     
     if len(seleccion_idx) > 0:
         punto_seleccionado = df_filtrado.iloc[seleccion_idx]
-        fila_seleccionada_id = punto_seleccionado.index[0]
+        idx_seleccionado = punto_seleccionado.index[0]  # Extracción segura del entero identificador
         dsp_nombre = limpiar_texto(punto_seleccionado['DSP NAME'].values[0], default="Nodo seleccionado")
         st.info(f"📍 Enfocando: {dsp_nombre}")
 
@@ -230,11 +228,14 @@ with col_mapa:
             detalles_str = "<br>".join(html_detalles) if html_detalles else "<i>Sin detalles adicionales</i>"
 
             # CONSTRUCCIÓN DEL BLOQUE DE COORDENADAS
-            html_coords = f"""
-            <div style="font-size: 10px; color: #666666; margin-top: 8px; border-top: 1px dashed #eee; padding-top: 4px;">
-                📍 Coords: {lat_val:.5f}, {lon_val:.5f}
-            </div>
-            """ if pd.notna(lat_val) and pd.notna(lon_val) else ""
+            if pd.notna(lat_val) and pd.notna(lon_val):
+                html_coords = f"""
+                <div style="font-size: 10px; color: #666666; margin-top: 8px; border-top: 1px dashed #eee; padding-top: 4px;">
+                    📍 Coords: {lat_val:.5f}, {lon_val:.5f}
+                </div>
+                """
+            else:
+                html_coords = ""
 
             html = f"""
             <div style="font-family: Arial; min-width: 180px; font-size: 13px; line-height: 1.4;">
