@@ -175,11 +175,11 @@ with col_info:
 
     seleccion_idx = event.selection.get("rows", [])
     punto_seleccionado = None
-    idx_seleccionado = None  # Guardará el número de índice exacto de la fila seleccionada
+    idx_seleccionado = None 
     
     if len(seleccion_idx) > 0:
         punto_seleccionado = df_filtrado.iloc[seleccion_idx]
-        idx_seleccionado = punto_seleccionado.index[0]  # Extracción segura del entero identificador
+        idx_seleccionado = punto_seleccionado.index[0]  # Extracción escalar limpia y segura del índice
         dsp_nombre = limpiar_texto(punto_seleccionado['DSP NAME'].values[0], default="Nodo seleccionado")
         st.info(f"📍 Enfocando: {dsp_nombre}")
 
@@ -212,32 +212,27 @@ with col_mapa:
             color_ico = "red" if is_bodega else "blue"
             icon_name = "home" if is_bodega else "truck"
 
-            # CONSTRUCCIÓN DINÁMICA DEL POPUP
+            # CONSTRUCCIÓN DINÁMICA DEL POPUP MEDIANTE CONCATENACIÓN ESTÁNDAR
             html_detalles = []
             if rep:
-                html_detalles.append(f"<b>Representante:</b> {rep.upper()}")
+                html_detalles.append('<b>Representante:</b> ' + str(rep.upper()))
             if hub and hub != "SIN ASIGNAR":
-                html_detalles.append(f"<b>Hub Origen:</b> {hub.upper()}")
+                html_detalles.append('<b>Hub Origen:</b> ' + str(hub.upper()))
             if mod:
-                html_detalles.append(f"<b>Modelo:</b> {mod.upper()}")
+                html_detalles.append('<b>Modelo:</b> ' + str(mod.upper()))
             if reg:
-                html_detalles.append(f"<b>Región:</b> {reg.upper()}")
+                html_detalles.append('<b>Región:</b> ' + str(reg.upper()))
             if pic:
-                html_detalles.append(f"<b>PIC Capacity:</b> {pic.upper()}")
+                html_detalles.append('<b>PIC Capacity:</b> ' + str(pic.upper()))
 
             detalles_str = "<br>".join(html_detalles) if html_detalles else "<i>Sin detalles adicionales</i>"
 
-            # CONSTRUCCIÓN DEL BLOQUE DE COORDENADAS
+            # CONSTRUCCIÓN DEL BLOQUE DE COORDENADAS CON FORMATO SEGURO
             if pd.notna(lat_val) and pd.notna(lon_val):
-                html_coords = f"""
-                <div style="font-size: 10px; color: #666666; margin-top: 8px; border-top: 1px dashed #eee; padding-top: 4px;">
-                    📍 Coords: {lat_val:.5f}, {lon_val:.5f}
-                </div>
-                """
+                html_coords = '<div style="font-size: 10px; color: #666666; margin-top: 8px; border-top: 1px dashed #eee; padding-top: 4px;">📍 Coords: {:.5f}, {:.5f}</div>'.format(lat_val, lon_val)
             else:
                 html_coords = ""
 
-            html = f"""
-            <div style="font-family: Arial; min-width: 180px; font-size: 13px; line-height: 1.4;">
-                <h4 style="color: #1e40af; margin:0 0 6px 0;">{dsp}</h4>
-                <hr style="margin:4px 0; border: 0; border-top: 1px solid #ddd;">
+            # HTML FINAL COMPUESTO POR CONCATENACIÓN INMUNE A SYNTAXERROR
+            html = '<div style="font-family: Arial; min-width: 180px; font-size: 13px; line-height: 1.4;">'
+            html += '<h4 style="color: #1e40af; margin:0 0 6px 0;">' + str(dsp) + '</h4>'
