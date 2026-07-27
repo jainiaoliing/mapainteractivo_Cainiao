@@ -11,7 +11,6 @@ st.set_page_config(layout="wide", page_title="Red SVC - Dashboard Interactivo")
 USUARIO_GITHUB = "cainiao"
 REPOSITORIO = "mapainteractivocainiao"
 ARCHIVO_EXCEL = "DIRECCIONES.xlsx"
-
 URL_EXCEL_GITHUB = f"https://raw.githubusercontent.com/{USUARIO_GITHUB}/{REPOSITORIO}/main/{ARCHIVO_EXCEL}"
 
 # Función auxiliar para validar y limpiar valores vacíos
@@ -30,30 +29,39 @@ def cargar_datos():
         df = pd.read_excel(URL_EXCEL_GITHUB)
     except Exception:
         df = pd.read_excel(ARCHIVO_EXCEL)
-    
+
     # Conversión de coordenadas a números
     df["LAT"] = pd.to_numeric(df["LAT"], errors='coerce')
     df["LON"] = pd.to_numeric(df["LON"], errors='coerce')
-    
+
     # CORRECCIÓN DE COLUMNA DE REGIÓN
     columna_region_real = None
     for opcion in ["Region", "Región", "REGION", "región", "region"]:
         if opcion in df.columns:
             columna_region_real = opcion
             break
-            
     if columna_region_real and columna_region_real != "Region":
         df["Region"] = df[columna_region_real]
     elif columna_region_real is None:
         df["Region"] = "Centro"
-    
+
+    # IDENTIFICACIÓN Y NORMALIZACIÓN DE LA COLUMNA 'HUB'
+    columna_hub_real = None
+    for opcion in ["Hub", "HUB", "hub"]:
+        if opcion in df.columns:
+            columna_hub_real = opcion
+            break
+    if columna_hub_real and columna_hub_real != "Hub":
+        df["Hub"] = df[columna_hub_real]
+    elif columna_hub_real is None:
+        df["Hub"] = None
+
     # IDENTIFICACIÓN Y NORMALIZACIÓN DE LA COLUMNA 'TIPO'
     columna_tipo_real = None
     for opcion in ["Tipo", "TIPO", "tipo", "Tipo de Instalacion", "Tipo de Instalación", "TIPO DE INSTALACION"]:
         if opcion in df.columns:
             columna_tipo_real = opcion
             break
-            
     if columna_tipo_real:
         df["Tipo"] = df[columna_tipo_real]
     else:
@@ -64,16 +72,16 @@ def cargar_datos():
         tipo_val = limpiar_texto(row.get("Tipo"))
         if tipo_val:
             return tipo_val
-        
         dsp_val = limpiar_texto(row.get("DSP NAME")).lower()
         modelo_val = limpiar_texto(row.get("Modelo")).lower()
-        
         if "bodega" in dsp_val or "bodega" in modelo_val or "hub" in dsp_val:
             return "Bodega"
         return "Proveedor"
 
     df["Tipo"] = df.apply(inferir_tipo, axis=1)
     df["Region"] = df["Region"].fillna("Sin Región")
+    if "Hub" in df.columns:
+        df["Hub"] = df["Hub"].fillna("Sin Asignar")
     
     return df.dropna(subset=["LAT", "LON"])
 
@@ -101,6 +109,10 @@ filtro_modelo = st.sidebar.selectbox("Modelo", opciones_modelo)
 opciones_region = ["Todas"] + sorted(df_original["Region"].dropna().unique().tolist()) if "Region" in df_original.columns else ["Todas"]
 filtro_region = st.sidebar.selectbox("Región", opciones_region)
 
+# NUEVO FILTRO: Selección de HUB para ver qué proveedores operan desde allí
+opciones_hub = ["Todos"] + sorted(df_original["Hub"].dropna().unique().tolist()) if "Hub" in df_original.columns else ["Todos"]
+filtro_hub = st.sidebar.selectbox("Filtrar por HUB (Proveedores asociados)", opciones_hub)
+
 # =========================================================================
 # LÓGICA DE FILTRADO
 # =========================================================================
@@ -120,6 +132,10 @@ if "Modelo" in df_filtrado.columns and filtro_modelo != "Todos":
 if "Region" in df_filtrado.columns and filtro_region != "Todas":
     df_filtrado = df_filtrado[df_filtrado["Region"] == filtro_region]
 
+# Aplicar el nuevo filtro de HUB asignado al proveedor
+if "Hub" in df_filtrado.columns and filtro_hub != "Todos":
+    df_filtrado = df_filtrado[df_filtrado["Hub"] == filtro_hub]
+
 # =========================================================================
 # INTERFAZ PRINCIPAL: MÉTRICAS
 # =========================================================================
@@ -127,11 +143,9 @@ st.title("🚚 Directorio Interactivo HUB y Estaciones DSP")
 
 m1, m2, m3, m4 = st.columns(4)
 total = len(df_filtrado)
-
 bodegas_mask = df_filtrado["Tipo"].astype(str).str.contains("Bodega", case=False, na=False)
 n_bodegas = len(df_filtrado[bodegas_mask])
 n_proveedores = total - n_bodegas
-
 n_regiones = df_filtrado["Region"].nunique() if "Region" in df_filtrado.columns else 0
 
 m1.metric("Total Nodos", total)
@@ -150,7 +164,8 @@ with col_info:
     st.subheader("Lista de Nodos / Proveedores")
     st.write("Selecciona una fila para ubicarla en el mapa:")
     
-    columnas_tabla = [col for col in ["DSP NAME", "PIC Capacity", "Tipo", "Modelo", "Region"] if col in df_filtrado.columns]
+    # Se añade la columna 'Hub' a la tabla para mejorar el control visual
+    columnas_tabla = [col for col in ["DSP NAME", "Hub", "PIC Capacity", "Tipo", "Modelo", "Region"] if col in df_filtrado.columns]
     
     event = st.dataframe(
         df_filtrado[columnas_tabla],
@@ -171,6 +186,7 @@ with col_mapa:
     if not df_filtrado.empty:
         if punto_seleccionado is not None:
             lat_ini = float(punto_seleccionado["LAT"].values[0])
+            lon_ini = float(punto_screenshot = punto_seleccionado["LON"].values[0]) # Corrección de tipografía interna
             lon_ini = float(punto_seleccionado["LON"].values[0])
             zoom_ini = 14
         else:
@@ -183,13 +199,12 @@ with col_mapa:
 
         for idx, fila in df_filtrado.iterrows():
             dsp = limpiar_texto(fila.get("DSP NAME"), "SIN NOMBRE").upper()
-            hub = limpiar_texto(fila.get("hub"))
+            hub = limpiar_texto(fila.get("Hub")) # Vinculado a la nueva columna normalizada
             pic = limpiar_texto(fila.get("PIC Capacity"))
             mod = limpiar_texto(fila.get("Modelo"))
             reg = limpiar_texto(fila.get("Region"))
             rep = limpiar_texto(fila.get("Representante Legal"))
             tipo_raw = limpiar_texto(fila.get("Tipo")).lower()
-            
             lat_val = fila.get("LAT")
             lon_val = fila.get("LON")
 
@@ -201,8 +216,8 @@ with col_mapa:
             html_detalles = []
             if rep:
                 html_detalles.append(f"<b>Representante:</b> {rep.upper()}")
-            if hub:
-                html_detalles.append(f"<b>Hub:</b> {hub.upper()}")
+            if hub and hub != "SIN ASIGNAR":
+                html_detalles.append(f"<b>Hub Origen:</b> {hub.upper()}")
             if mod:
                 html_detalles.append(f"<b>Modelo:</b> {mod.upper()}")
             if reg:
@@ -212,7 +227,7 @@ with col_mapa:
 
             detalles_str = "<br>".join(html_detalles) if html_detalles else "<i>Sin detalles adicionales</i>"
 
-            # CONSTRUCCIÓN DEL BLOQUE DE COORDENADAS (AL FINAL Y EN TAMAÑO PEQUEÑO)
+            # CONSTRUCCIÓN DEL BLOQUE DE COORDENADAS
             html_coords = f"""
             <div style="font-size: 10px; color: #666666; margin-top: 8px; border-top: 1px dashed #eee; padding-top: 4px;">
                 📍 Coords: {lat_val:.5f}, {lon_val:.5f}
@@ -222,25 +237,3 @@ with col_mapa:
             html = f"""
             <div style="font-family: Arial; min-width: 180px; font-size: 13px; line-height: 1.4;">
                 <h4 style="color: #1e40af; margin:0 0 6px 0;">{dsp}</h4>
-                <hr style="margin:4px 0; border: 0; border-top: 1px solid #ddd;">
-                {detalles_str}
-                {html_coords}
-            </div>
-            """
-            
-            if punto_seleccionado is not None and idx == punto_seleccionado.index[0]:
-                folium.Marker(
-                    location=[lat_val, lon_val],
-                    popup=folium.Popup(html, max_width=300, show=True),
-                    icon=folium.Icon(color="green", icon="star", prefix='fa')
-                ).add_to(mapa)
-            else:
-                folium.Marker(
-                    location=[lat_val, lon_val],
-                    popup=folium.Popup(html, max_width=300),
-                    icon=folium.Icon(color=color_ico, icon=icon_name, prefix='fa')
-                ).add_to(marker_cluster)
-
-        st_folium(mapa, width="stretch", height=600)
-    else:
-        st.warning("No hay datos para mostrar con los filtros actuales.")
