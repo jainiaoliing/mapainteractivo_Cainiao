@@ -109,7 +109,7 @@ filtro_modelo = st.sidebar.selectbox("Modelo", opciones_modelo)
 opciones_region = ["Todas"] + sorted(df_original["Region"].dropna().unique().tolist()) if "Region" in df_original.columns else ["Todas"]
 filtro_region = st.sidebar.selectbox("Región", opciones_region)
 
-# FILTRO DE HUBs OPERATIVOS
+# NUEVO FILTRO: Selección de HUB para ver qué proveedores operan desde allí
 opciones_hub = ["Todos"] + sorted(df_original["Hub"].dropna().unique().tolist()) if "Hub" in df_original.columns else ["Todos"]
 filtro_hub = st.sidebar.selectbox("Filtrar por HUB (Proveedores asociados)", opciones_hub)
 
@@ -132,7 +132,7 @@ if "Modelo" in df_filtrado.columns and filtro_modelo != "Todos":
 if "Region" in df_filtrado.columns and filtro_region != "Todas":
     df_filtrado = df_filtrado[df_filtrado["Region"] == filtro_region]
 
-# Aplicar el filtro de HUB asignado al proveedor
+# Aplicar el nuevo filtro de HUB asignado al proveedor
 if "Hub" in df_filtrado.columns and filtro_hub != "Todos":
     df_filtrado = df_filtrado[df_filtrado["Hub"] == filtro_hub]
 
@@ -164,6 +164,7 @@ with col_info:
     st.subheader("Lista de Nodos / Proveedores")
     st.write("Selecciona una fila para ubicarla en el mapa:")
     
+    # Se añade la columna 'Hub' a la tabla para mejorar el control visual
     columnas_tabla = [col for col in ["DSP NAME", "Hub", "PIC Capacity", "Tipo", "Modelo", "Region"] if col in df_filtrado.columns]
     
     event = st.dataframe(
@@ -176,16 +177,19 @@ with col_info:
 
     seleccion_idx = event.selection.get("rows", [])
     punto_seleccionado = None
+    fila_seleccionada_id = None
+    
     if len(seleccion_idx) > 0:
-        punto_seleccionado = df_filtrado.iloc[seleccion_idx].iloc[0]
-        dsp_nombre = limpiar_texto(punto_seleccionado.get('DSP NAME'), default="Nodo seleccionado")
+        punto_seleccionado = df_filtrado.iloc[seleccion_idx]
+        fila_seleccionada_id = punto_seleccionado.index[0]
+        dsp_nombre = limpiar_texto(punto_seleccionado['DSP NAME'].values[0], default="Nodo seleccionado")
         st.info(f"📍 Enfocando: {dsp_nombre}")
 
 with col_mapa:
     if not df_filtrado.empty:
         if punto_seleccionado is not None:
-            lat_ini = float(punto_seleccionado["LAT"])
-            lon_ini = float(punto_seleccionado["LON"])
+            lat_ini = float(punto_seleccionado["LAT"].values[0])
+            lon_ini = float(punto_seleccionado["LON"].values[0])
             zoom_ini = 14
         else:
             lat_ini = df_filtrado["LAT"].mean()
@@ -236,11 +240,3 @@ with col_mapa:
             <div style="font-family: Arial; min-width: 180px; font-size: 13px; line-height: 1.4;">
                 <h4 style="color: #1e40af; margin:0 0 6px 0;">{dsp}</h4>
                 <hr style="margin:4px 0; border: 0; border-top: 1px solid #ddd;">
-                {detalles_str}
-                {html_coords}
-            </div>
-            """
-
-            if punto_seleccionado is not None and idx == punto_seleccionado.name:
-                folium.Marker(
-                    location=[lat_val, lon_val],
