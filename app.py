@@ -230,6 +230,5 @@ with col_mapa:
             </div>
             """
 
+            # CORRECCIÓN CRÍTICA: punto_seleccionado.index[0] asegura una comparación booleana limpia
             if punto_seleccionado is not None and idx == punto_seleccionado.index[0]:
-                folium.Marker(
-                    location=[lat_val, lon_val],
